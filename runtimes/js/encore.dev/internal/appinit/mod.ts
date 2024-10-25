@@ -80,22 +80,17 @@ export type Middleware = (
   next: Next
 ) => Promise<Response>;
 
-function invoke(
-  req: runtime.Request,
-  m: Middleware[],
-  h: Handler
-): Promise<Response> {
-  const middleware = m.shift();
+function invoke(req: runtime.Request, mws: Middleware[]): Promise<Response> {
+  const middleware = mws.shift();
 
-  if (middleware) {
-    return middleware(req, async () => {
-      return await invoke(req, m, h);
-    });
+  if (!middleware) {
+    throw APIError.internal(
+      "no middlewares to call, was the handler not added to the chain?"
+    );
   }
-
-  setCurrentRequest(req);
-  const payload = req.payload();
-  return payload !== null ? h.handler(payload) : h.handler();
+  return middleware(req, async () => {
+    return await invoke(req, mws);
+  });
 }
 
 function transformHandler(h: Handler): Handler {
@@ -152,16 +147,21 @@ function transformHandler(h: Handler): Handler {
       const n = next(req);
       console.log("middleware 2 end");
       return n;
-    },
-    (_req, _next) => {
-      throw APIError.permissionDenied("you shall not pass");
     }
+    //(_req, _next) => {
+    //  throw APIError.permissionDenied("you shall not pass");
+    //}
   ];
 
   return {
     ...h,
     handler: (req: runtime.Request) => {
-      return invoke(req, middlewares, h);
+      middlewares.push((req, _next) => {
+        setCurrentRequest(req);
+        const payload = req.payload();
+        return payload !== null ? h.handler(payload) : h.handler();
+      });
+      return invoke(req, middlewares);
     }
   };
 }
