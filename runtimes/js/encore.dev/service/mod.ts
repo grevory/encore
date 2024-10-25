@@ -1,3 +1,5 @@
+import { APICallMeta } from "../req_meta";
+
 /**
  * Defines an Encore backend service.
  *
@@ -10,11 +12,16 @@
 export class Service {
   public readonly name: string;
   public readonly cfg: ServiceConfig;
+  public readonly middlewares: Middleware[];
 
-  constructor(name: string, cfg?: ServiceConfig) {
+  constructor(name: string, cfg?: ServiceConfig, md?: Middleware[]) {
     this.name = name;
     this.cfg = cfg ?? {};
+    this.middlewares = md || [];
   }
 }
 
 export interface ServiceConfig {}
+
+export type Next = (req: APICallMeta) => Promise<Response>;
+export type Middleware = (req: APICallMeta, next: Next) => Promise<Response>;

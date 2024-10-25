@@ -1,3 +1,4 @@
+import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
@@ -73,6 +74,30 @@ class IterableSocket {
   }
 }
 
+export type Next = (req: runtime.Request) => Promise<Response>;
+export type Middleware = (
+  req: runtime.Request,
+  next: Next
+) => Promise<Response>;
+
+function invoke(
+  req: runtime.Request,
+  m: Middleware[],
+  h: Handler
+): Promise<Response> {
+  const middleware = m.shift();
+
+  if (middleware) {
+    return middleware(req, async () => {
+      return await invoke(req, m, h);
+    });
+  }
+
+  setCurrentRequest(req);
+  const payload = req.payload();
+  return payload !== null ? h.handler(payload) : h.handler();
+}
+
 function transformHandler(h: Handler): Handler {
   if (h.streamingResponse || h.streamingRequest) {
     return {
@@ -114,12 +139,29 @@ function transformHandler(h: Handler): Handler {
       }
     };
   }
+
+  const middlewares: Middleware[] = [
+    (req, next) => {
+      console.log("middleware 1 begin");
+      const n = next(req);
+      console.log("middleware 1 end");
+      return n;
+    },
+    (req, next) => {
+      console.log("middleware 2 begin");
+      const n = next(req);
+      console.log("middleware 2 end");
+      return n;
+    },
+    (_req, _next) => {
+      throw APIError.permissionDenied("you shall not pass");
+    }
+  ];
+
   return {
     ...h,
     handler: (req: runtime.Request) => {
-      setCurrentRequest(req);
-      const payload = req.payload();
-      return payload !== null ? h.handler(payload) : h.handler();
+      return invoke(req, middlewares, h);
     }
   };
 }
