@@ -1,5 +1,6 @@
 import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
+import { RequestMeta, currentRequest } from "../../req_meta";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -77,13 +78,10 @@ class IterableSocket {
   }
 }
 
-export type Next = (req: runtime.Request) => Promise<Response>;
-export type Middleware = (
-  req: runtime.Request,
-  next: Next
-) => Promise<Response>;
+export type Next = (req: RequestMeta) => Promise<Response>;
+export type Middleware = (req: RequestMeta, next: Next) => Promise<Response>;
 
-function invoke(req: runtime.Request, mws: Middleware[]): Promise<Response> {
+function invoke(req: RequestMeta, mws: Middleware[]): Promise<Response> {
   const middleware = mws.shift();
 
   if (!middleware) {
@@ -141,14 +139,16 @@ function transformHandler(h: Handler): runtime.ApiRoute {
   return {
     ...h.apiRoute,
     handler: (req: runtime.Request) => {
-      h.middlewares.push((req, _next) => {
-        setCurrentRequest(req);
+      setCurrentRequest(req);
+      const cur = currentRequest() as RequestMeta;
+
+      const hmw = async () => {
         const payload = req.payload();
         return payload !== null
           ? h.apiRoute.handler(payload)
           : h.apiRoute.handler();
-      });
-      return invoke(req, h.middlewares);
+      };
+      return invoke(cur, [...h.middlewares, hmw]);
     }
   };
 }
