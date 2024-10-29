@@ -4,7 +4,10 @@ import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
 
-export type Handler = runtime.ApiRoute;
+export type Handler = {
+  apiRoute: runtime.ApiRoute;
+  middlewares: Middleware[];
+};
 
 export function registerHandlers(handlers: Handler[]) {
   runtime.RT.registerHandlers(handlers.map((h) => transformHandler(h)));
@@ -93,10 +96,10 @@ function invoke(req: runtime.Request, mws: Middleware[]): Promise<Response> {
   });
 }
 
-function transformHandler(h: Handler): Handler {
-  if (h.streamingResponse || h.streamingRequest) {
+function transformHandler(h: Handler): runtime.ApiRoute {
+  if (h.apiRoute.streamingResponse || h.apiRoute.streamingRequest) {
     return {
-      ...h,
+      ...h.apiRoute,
       // req is the upgrade request.
       // stream is either a bidirectional stream, in stream or out stream.
       handler: (req: runtime.Request, stream: unknown) => {
@@ -113,15 +116,15 @@ function transformHandler(h: Handler): Handler {
         // handshake payload
         const payload = req.payload();
         return payload !== null
-          ? h.handler(payload, stream)
-          : h.handler(stream);
+          ? h.apiRoute.handler(payload, stream)
+          : h.apiRoute.handler(stream);
       }
     };
   }
 
-  if (h.raw) {
+  if (h.apiRoute.raw) {
     return {
-      ...h,
+      ...h.apiRoute,
       handler: (
         req: runtime.Request,
         resp: runtime.ResponseWriter,
@@ -130,38 +133,22 @@ function transformHandler(h: Handler): Handler {
         setCurrentRequest(req);
         const rawReq = new RawRequest(req, body);
         const rawResp = new RawResponse(rawReq, resp);
-        return h.handler(rawReq, rawResp);
+        return h.apiRoute.handler(rawReq, rawResp);
       }
     };
   }
 
-  const middlewares: Middleware[] = [
-    (req, next) => {
-      console.log("middleware 1 begin");
-      const n = next(req);
-      console.log("middleware 1 end");
-      return n;
-    },
-    (req, next) => {
-      console.log("middleware 2 begin");
-      const n = next(req);
-      console.log("middleware 2 end");
-      return n;
-    }
-    //(_req, _next) => {
-    //  throw APIError.permissionDenied("you shall not pass");
-    //}
-  ];
-
   return {
-    ...h,
+    ...h.apiRoute,
     handler: (req: runtime.Request) => {
-      middlewares.push((req, _next) => {
+      h.middlewares.push((req, _next) => {
         setCurrentRequest(req);
         const payload = req.payload();
-        return payload !== null ? h.handler(payload) : h.handler();
+        return payload !== null
+          ? h.apiRoute.handler(payload)
+          : h.apiRoute.handler();
       });
-      return invoke(req, middlewares);
+      return invoke(req, h.middlewares);
     }
   };
 }
