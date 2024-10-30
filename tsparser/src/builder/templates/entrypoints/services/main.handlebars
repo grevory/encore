@@ -5,9 +5,9 @@ import { {{name}} as {{name}}Impl{{@index}} } from {{toJSON import_path}};
 {{#each subscriptions}}
 import {{toJSON import_path}};
 {{/each}}
-{{#with service}}
-import * as service from {{toJSON import_path}};
-{{/with}}
+{{#each services}}
+import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
+{{/each}}
 
 const handlers: Handler[] = [
 {{#each endpoints}}
@@ -20,7 +20,7 @@ const handlers: Handler[] = [
             streamingRequest:  {{toJSON streaming_request}},
             streamingResponse: {{toJSON streaming_response}},
         },
-        middlewares: service.default.cfg.middlewares || [],
+        middlewares: {{encoreNameToIdent name}}_service.default.cfg.middlewares || [],
     },
 {{/each}}
 ];

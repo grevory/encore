@@ -110,7 +110,9 @@ impl Builder<'_> {
             let mut gateways = Vec::new();
             let mut subscriptions = Vec::new();
             let mut auth_handlers = Vec::new();
-            let mut service = None;
+            let mut services_ctx = Vec::new();
+
+            let svc_rel_path = params.app.rel_path_string(&svc.root)?;
 
             for b in &svc.binds {
                 match &b.resource {
@@ -133,26 +135,18 @@ impl Builder<'_> {
                     Resource::AuthHandler(ah) if b.kind == Create => {
                         auth_handlers.push(ah);
                     }
-                    Resource::Service(svc) => {
-                        service = Some(svc);
+                    Resource::Service(service) => {
+                        let rel_path = get_svc_rel_path(&svc.root, service.range, true);
+                        let import_path =
+                            Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+                        services_ctx.push(json!({
+                            "name": service.name,
+                            "import_path": import_path,
+                        }));
                     }
                     _ => {}
                 }
             }
-
-            let svc_rel_path = params.app.rel_path_string(&svc.root)?;
-            let _gen_root = params.app.root.join("encore.gen");
-
-            let svc_ctx = service.map(|service| {
-                let rel_path = get_svc_rel_path(&svc.root, service.range, true);
-                let import_path = Path::new("../../../../../")
-                    .join(&svc_rel_path)
-                    .join(rel_path);
-                json!({
-                    "name": service.name,
-                    "import_path": import_path,
-                })
-            });
 
             // Add the auth handlers to the auth context.
             for ah in &auth_handlers {
@@ -206,7 +200,7 @@ impl Builder<'_> {
                     "name": svc.name,
                     "endpoints": endpoint_ctx,
                     "subscriptions": subscription_ctx,
-                    "service": svc_ctx,
+                    "services": services_ctx,
                 });
                 let main = self.entrypoint_service_main.render(&self.reg, ctx)?;
 
@@ -349,13 +343,15 @@ impl Builder<'_> {
             let mut endpoint_ctx = Vec::new();
             let mut gateway_ctx = Vec::new();
             let mut subscription_ctx = Vec::new();
-            let mut svc_ctx = None;
+            let mut services_ctx = Vec::new();
 
             for svc in &params.desc.parse.services {
                 let mut endpoints = Vec::new();
                 let mut gateways = Vec::new();
                 let mut subscriptions = Vec::new();
-                let mut service = None;
+
+                let svc_rel_path = params.app.rel_path_string(&svc.root)?;
+
                 for b in &svc.binds {
                     match &b.resource {
                         Resource::APIEndpoint(ep) => {
@@ -374,24 +370,18 @@ impl Builder<'_> {
                         Resource::PubSubSubscription(sub) => {
                             subscriptions.push(sub);
                         }
-                        Resource::Service(svc) => {
-                            service = Some(svc);
+                        Resource::Service(service) => {
+                            let rel_path = get_svc_rel_path(&svc.root, service.range, true);
+                            let import_path =
+                                Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+                            services_ctx.push(json!({
+                                "name": service.name,
+                                "import_path": import_path,
+                            }));
                         }
                         _ => {}
                     }
                 }
-
-                let svc_rel_path = params.app.rel_path_string(&svc.root)?;
-                let _gen_root = params.app.root.join("encore.gen");
-
-                svc_ctx = service.map(|service| {
-                    let rel_path = get_svc_rel_path(&svc.root, service.range, true);
-                    let import_path = Path::new("../../../../").join(&svc_rel_path).join(rel_path);
-                    json!({
-                        "name": service.name,
-                        "import_path": import_path,
-                    })
-                });
 
                 // Service Main
                 for rpc in &endpoints {
@@ -438,7 +428,7 @@ impl Builder<'_> {
                 "endpoints": endpoint_ctx,
                 "gateways": gateway_ctx,
                 "subscriptions": subscription_ctx,
-                "service": svc_ctx,
+                "services": services_ctx,
             });
             let main = self.entrypoint_combined_main.render(&self.reg, ctx)?;
 

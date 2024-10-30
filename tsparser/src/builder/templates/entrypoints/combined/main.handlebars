@@ -9,9 +9,9 @@ import { {{name}} as {{encoreNameToIdent service_name}}_{{name}}Impl{{@index}} }
 {{#each subscriptions}}
 import {{toJSON import_path}};
 {{/each}}
-{{#with service}}
-import * as service from {{toJSON import_path}};
-{{/with}}
+{{#each services}}
+import * as {{encoreNameToIdent name}}_service from {{toJSON import_path}};
+{{/each}}
 
 
 const gateways: any[] = [
@@ -31,7 +31,7 @@ const handlers: Handler[] = [
             streamingRequest:  {{toJSON streaming_request}},
             streamingResponse: {{toJSON streaming_response}},
         },
-        middlewares: service.default.cfg.middlewares || [],
+        middlewares: {{encoreNameToIdent service_name}}_service.default.cfg.middlewares || [],
     },
 {{/each}}
 ];
