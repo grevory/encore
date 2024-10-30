@@ -78,10 +78,10 @@ class IterableSocket {
   }
 }
 
-export type Next = (req: RequestMeta) => Promise<Response>;
-export type Middleware = (req: RequestMeta, next: Next) => Promise<Response>;
+export type Next = (req: RequestMeta) => Promise<any>;
+export type Middleware = (req: RequestMeta, next: Next) => Promise<any>;
 
-function invoke(req: RequestMeta, mws: Middleware[]): Promise<Response> {
+function invoke(req: RequestMeta, mws: Middleware[]): Promise<any> {
   const middleware = mws.shift();
 
   if (!middleware) {
@@ -90,7 +90,7 @@ function invoke(req: RequestMeta, mws: Middleware[]): Promise<Response> {
     );
   }
   return middleware(req, async () => {
-    return await invoke(req, mws);
+    return await invoke(req, [...mws]);
   });
 }
 
@@ -102,6 +102,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       // stream is either a bidirectional stream, in stream or out stream.
       handler: (req: runtime.Request, stream: unknown) => {
         setCurrentRequest(req);
+        const cur = currentRequest() as RequestMeta;
 
         // make readable streams async iterators
         if (stream instanceof runtime.Stream) {
@@ -111,11 +112,14 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           stream = new IterableSocket(stream);
         }
 
-        // handshake payload
-        const payload = req.payload();
-        return payload !== null
-          ? h.apiRoute.handler(payload, stream)
-          : h.apiRoute.handler(stream);
+        const handler = async () => {
+          // handshake payload
+          const payload = req.payload();
+          return payload !== null
+            ? h.apiRoute.handler(payload, stream)
+            : h.apiRoute.handler(stream);
+        };
+        return invoke(cur, [...h.middlewares, handler]);
       }
     };
   }
@@ -129,9 +133,15 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         body: runtime.BodyReader
       ) => {
         setCurrentRequest(req);
+        const cur = currentRequest() as RequestMeta;
+
         const rawReq = new RawRequest(req, body);
         const rawResp = new RawResponse(rawReq, resp);
-        return h.apiRoute.handler(rawReq, rawResp);
+
+        const handler = async () => {
+          return h.apiRoute.handler(rawReq, rawResp);
+        };
+        return invoke(cur, [...h.middlewares, handler]);
       }
     };
   }
@@ -142,13 +152,13 @@ function transformHandler(h: Handler): runtime.ApiRoute {
       setCurrentRequest(req);
       const cur = currentRequest() as RequestMeta;
 
-      const hmw = async () => {
+      const handler = async () => {
         const payload = req.payload();
         return payload !== null
           ? h.apiRoute.handler(payload)
           : h.apiRoute.handler();
       };
-      return invoke(cur, [...h.middlewares, hmw]);
+      return invoke(cur, [...h.middlewares, handler]);
     }
   };
 }
