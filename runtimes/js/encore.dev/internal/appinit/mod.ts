@@ -1,5 +1,6 @@
 import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
+import { Middleware } from "../../api/mod";
 import { RequestMeta, currentRequest } from "../../req_meta";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
@@ -78,10 +79,11 @@ class IterableSocket {
   }
 }
 
-export type Next = (req: RequestMeta) => Promise<any>;
-export type Middleware = (req: RequestMeta, next: Next) => Promise<any>;
-
-function invoke(req: RequestMeta, mws: Middleware[]): Promise<any> {
+// recursivly calls all middlewares
+function invokeMiddlewareChain(
+  req: RequestMeta,
+  mws: Middleware[]
+): Promise<any> {
   const middleware = mws.shift();
 
   if (!middleware) {
@@ -90,7 +92,7 @@ function invoke(req: RequestMeta, mws: Middleware[]): Promise<any> {
     );
   }
   return middleware(req, async () => {
-    return await invoke(req, [...mws]);
+    return await invokeMiddlewareChain(req, [...mws]);
   });
 }
 
@@ -119,7 +121,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
             ? h.apiRoute.handler(payload, stream)
             : h.apiRoute.handler(stream);
         };
-        return invoke(cur, [...h.middlewares, handler]);
+        return invokeMiddlewareChain(cur, [...h.middlewares, handler]);
       }
     };
   }
@@ -141,7 +143,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
         const handler = async () => {
           return h.apiRoute.handler(rawReq, rawResp);
         };
-        return invoke(cur, [...h.middlewares, handler]);
+        return invokeMiddlewareChain(cur, [...h.middlewares, handler]);
       }
     };
   }
@@ -158,7 +160,7 @@ function transformHandler(h: Handler): runtime.ApiRoute {
           ? h.apiRoute.handler(payload)
           : h.apiRoute.handler();
       };
-      return invoke(cur, [...h.middlewares, handler]);
+      return invokeMiddlewareChain(cur, [...h.middlewares, handler]);
     }
   };
 }

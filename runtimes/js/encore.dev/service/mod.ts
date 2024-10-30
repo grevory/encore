@@ -1,4 +1,4 @@
-import { Middleware } from "../internal/appinit/mod";
+import { Middleware } from "../api/mod";
 
 /**
  * Defines an Encore backend service.

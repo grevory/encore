@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import type { IncomingMessage, ServerResponse } from "http";
+import { RequestMeta } from "../mod";
 export { RawRequest, RawResponse } from "../internal/api/node_http";
 
 export type Method =
@@ -141,21 +142,21 @@ export interface StreamOut<Response> {
 
 export type StreamInOutHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamInOut<Request, Response>) => Promise<void>
-  : (
-    data: HandshakeData,
-    stream: StreamInOut<Request, Response>
-  ) => Promise<void>;
+    ? (stream: StreamInOut<Request, Response>) => Promise<void>
+    : (
+        data: HandshakeData,
+        stream: StreamInOut<Request, Response>
+      ) => Promise<void>;
 
 export type StreamOutHandlerFn<HandshakeData, Response> =
   HandshakeData extends void
-  ? (stream: StreamOut<Response>) => Promise<void>
-  : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
+    ? (stream: StreamOut<Response>) => Promise<void>
+    : (data: HandshakeData, stream: StreamOut<Response>) => Promise<void>;
 
 export type StreamInHandlerFn<HandshakeData, Request, Response> =
   HandshakeData extends void
-  ? (stream: StreamIn<Request>) => Promise<Response>
-  : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
+    ? (stream: StreamIn<Request>) => Promise<Response>
+    : (data: HandshakeData, stream: StreamIn<Request>) => Promise<Response>;
 
 export type StreamInOut<Request, Response> = StreamIn<Request> &
   StreamOut<Response>;
@@ -263,3 +264,6 @@ api.static = function staticAssets(options: StaticOptions) {
 
 export { APIError, ErrCode } from "./error";
 export { Gateway, type GatewayConfig } from "./gateway";
+
+export type Next = (req: RequestMeta) => Promise<any>;
+export type Middleware = (req: RequestMeta, next: Next) => Promise<any>;
