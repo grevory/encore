@@ -1,7 +1,7 @@
 import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
-import { Middleware } from "../../api/mod";
-import { RequestMeta, currentRequest } from "../../req_meta";
+import { Middleware, FilteredMiddleware } from "../../api/mod";
+import { APICallMeta, RequestMeta, currentRequest } from "../../req_meta";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
 import * as runtime from "../runtime/mod";
@@ -84,16 +84,38 @@ function invokeMiddlewareChain(
   req: RequestMeta,
   mws: Middleware[]
 ): Promise<any> {
-  const middleware = mws.shift();
+  while (true) {
+    const middleware = mws.shift();
 
-  if (!middleware) {
-    throw APIError.internal(
-      "no middlewares to call, was the handler not added to the chain?"
-    );
+    if (!middleware) {
+      throw APIError.internal(
+        "no middlewares to call, was the handler not added to the chain?"
+      );
+    }
+
+    if (middleware.filter) {
+      const filter = middleware.filter;
+      const apiMeta = req as APICallMeta;
+
+      console.dir(apiMeta);
+
+      if (filter.requiresAuth !== undefined) {
+        if (filter.requiresAuth !== apiMeta.api.requiresAuth) {
+          continue;
+        }
+      }
+
+      if (filter.exposed !== undefined) {
+        if (filter.exposed !== apiMeta.api.exposed) {
+          continue;
+        }
+      }
+    }
+
+    return middleware(req, async () => {
+      return await invokeMiddlewareChain(req, [...mws]);
+    });
   }
-  return middleware(req, async () => {
-    return await invokeMiddlewareChain(req, [...mws]);
-  });
 }
 
 function transformHandler(h: Handler): runtime.ApiRoute {
