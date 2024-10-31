@@ -110,6 +110,7 @@ impl Builder<'_> {
             let mut gateways = Vec::new();
             let mut subscriptions = Vec::new();
             let mut auth_handlers = Vec::new();
+
             let mut services_ctx = Vec::new();
 
             let svc_rel_path = params.app.rel_path_string(&svc.root)?;
@@ -137,8 +138,10 @@ impl Builder<'_> {
                     }
                     Resource::Service(service) => {
                         let rel_path = get_svc_rel_path(&svc.root, service.range, true);
-                        let import_path =
-                            Path::new("../../../../").join(&svc_rel_path).join(rel_path);
+                        let import_path = Path::new("../../../../../")
+                            .join(&svc_rel_path)
+                            .join(rel_path);
+
                         services_ctx.push(json!({
                             "name": service.name,
                             "import_path": import_path,
@@ -180,6 +183,7 @@ impl Builder<'_> {
                         "streaming_request": rpc.streaming_request,
                         "streaming_response": rpc.streaming_response,
                         "import_path": import_path,
+                        "service_name": svc.name,
                     }));
                 }
 

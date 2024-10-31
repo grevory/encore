@@ -20,6 +20,7 @@ pub struct Service {
     pub doc: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(LitParser, Default)]
 struct DecodedServiceConfig {
     middlewares: Option<ast::Expr>,
@@ -61,18 +62,6 @@ pub static SERVICE_PARSER: ResourceParser = ResourceParser {
                         .type_checker
                         .resolve_obj(pass.module.clone(), &ast::Expr::Ident(id.clone())),
                 };
-
-                /*
-                let middlewares = r
-                    .config
-                    .and_then(|config| config.middlewares)
-                    .and_then(|expr| {
-                        let obj = pass.type_checker.resolve_obj(pass.module.clone(), &expr);
-                        if obj.is_none() {
-                            r.range.err("couldn't resolve middlewares");
-                        }
-                        obj
-                    });*/
 
                 let resource = Resource::Service(Lrc::new(Service {
                     range: r.range,
