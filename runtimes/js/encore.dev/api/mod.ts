@@ -271,7 +271,7 @@ export interface MiddlewareOptions {
 
   /**
    * If set, only run middleware on endpoints that either require on not
-   * requires auth
+   * requires auth.
    */
   requiresAuth?: boolean;
 }
@@ -284,7 +284,7 @@ export interface Middleware {
 export function middleware(m: Middleware): Middleware;
 export function middleware(
   options: MiddlewareOptions,
-  m: Middleware
+  fn: Middleware
 ): Middleware;
 
 export function middleware(...args: unknown[]): Middleware {
