@@ -79,7 +79,7 @@ class IterableSocket {
   }
 }
 
-// recursivly calls all middlewares
+// recursively calls all middlewares
 function invokeMiddlewareChain(
   req: RequestMeta,
   mws: Middleware[]
