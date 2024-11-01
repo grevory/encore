@@ -262,31 +262,40 @@ api.static = function staticAssets(options: StaticOptions) {
   return new StaticAssets(options);
 };
 
-export { APIError, ErrCode } from "./error";
-export { Gateway, type GatewayConfig } from "./gateway";
-
-export interface MiddlewareFilter {
+export interface MiddlewareOptions {
   /**
-   * When set, this middleware will only run endpoints where the `expose`
-   * option matches
+   * If set, only run middleware on endpoints that are either exposed or not
+   * exposed.
    */
   exposed?: boolean;
 
   /**
-   * When set, this middleware will only run endpoints where the `auth`
-   * option matches
+   * If set, only run middleware on endpoints that either require on not
+   * requires auth
    */
   requiresAuth?: boolean;
 }
 export type Next = (req: RequestMeta) => Promise<any>;
 export interface Middleware {
   (req: RequestMeta, next: Next): Promise<any>;
-  filter?: MiddlewareFilter;
+  options?: MiddlewareOptions;
 }
-export function FilteredMiddleware(
-  filter: MiddlewareFilter,
+
+export function middleware(m: Middleware): Middleware;
+export function middleware(
+  options: MiddlewareOptions,
   m: Middleware
-): Middleware {
-  m.filter = filter;
-  return m;
+): Middleware;
+
+export function middleware(...args: unknown[]): Middleware {
+  if (args.length > 1) {
+    let m = args[1] as Middleware;
+    let o = args[0] as MiddlewareOptions;
+    m.options = o;
+    return m;
+  }
+  return args[0] as Middleware;
 }
+
+export { APIError, ErrCode } from "./error";
+export { Gateway, type GatewayConfig } from "./gateway";

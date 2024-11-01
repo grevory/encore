@@ -1,6 +1,6 @@
 import { APIError } from "../../api/error";
 import { Gateway } from "../../api/gateway";
-import { Middleware, FilteredMiddleware } from "../../api/mod";
+import { Middleware } from "../../api/mod";
 import { APICallMeta, RequestMeta, currentRequest } from "../../req_meta";
 import { RawRequest, RawResponse } from "../api/node_http";
 import { setCurrentRequest } from "../reqtrack/mod";
@@ -93,20 +93,18 @@ function invokeMiddlewareChain(
       );
     }
 
-    if (middleware.filter) {
-      const filter = middleware.filter;
+    if (middleware.options) {
+      const options = middleware.options;
       const apiMeta = req as APICallMeta;
 
-      console.dir(apiMeta);
-
-      if (filter.requiresAuth !== undefined) {
-        if (filter.requiresAuth !== apiMeta.api.requiresAuth) {
+      if (options.requiresAuth !== undefined) {
+        if (options.requiresAuth !== apiMeta.api.requiresAuth) {
           continue;
         }
       }
 
-      if (filter.exposed !== undefined) {
-        if (filter.exposed !== apiMeta.api.exposed) {
+      if (options.exposed !== undefined) {
+        if (options.exposed !== apiMeta.api.exposed) {
           continue;
         }
       }
