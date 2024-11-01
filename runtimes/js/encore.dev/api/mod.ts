@@ -275,6 +275,7 @@ export interface MiddlewareOptions {
    */
   requiresAuth?: boolean;
 }
+
 export type Next = (req: RequestMeta) => Promise<any>;
 export interface Middleware {
   (req: RequestMeta, next: Next): Promise<any>;
